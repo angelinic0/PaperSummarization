@@ -1,0 +1,610 @@
+
+Last few years have witnessed the success of deep convolutional neural networks
+ in many computer vision applications. One important reason is the emer-
+gence of large annotated datasets and the development of high-performance
+computing hardware facilitating the training of high capacity CNNs with an
+exceptionally large number of parameters.
+When defining the structure of a network, large networks are often preferred,
+and strong regularizers  tend to be applied to give the network as much dis-
+criminative power as possible. As such, the state-of-the-art CNNs nowadays con-
+tain hundreds of millions of parameters . Most of these parameters come from
+one or two layers that host a large number of neurons. Take AlexNet  as
+an example. The first and the second fully connected layers, which have 4096
+neurons each, contain around 89% of all the parameters. Having to use such a
+large number of parameters leads to high memory requirements when mapping
+and running the network on computational platforms. Consequently, using deep
+CNNs obligates significant hardware resources, which hinders their practicability
+for mobile computing devices that have limited memory specifications.
+2 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+Table 1. Neuron reduction in the first fully connected layer, the total parameter
+compression, reduced memory, the top-1 validation error rate (red: error rate without
+sparse constraints).
+Network compr ession 
+neurons | parameters
+LeNet 97.80 92.00 1.52 
+CIFAR-10 quick) 73.44 33.42 0.19 
+AlexNet 73.73 65.42 152.14 
+VGG-13 76.21 61.29 311.06 
+Supposing a single type is used to store the weight
+Results on number of neurons in the first fully connected layer
+Results on the number of parameters of the whole network
+Several recent studies have focused on reducing the size of the network con-
+cluding that there is substantial redundancy in the number of parameters of
+a CNN. For instance,  represent the filters in a CNN using a linear com-
+bination of basis filters. However, these methods can only apply to an already
+trained network. Other works have investigated directly reducing the number
+of parameters in a CNN by using sparse filters instead of its original full-size
+filters. To the best of our knowledge, existing deep learning toolboxes  do
+not support sparse data structures yet. Therefore, special structures need to be
+implemented. Moreover, FFT is shown to be very efficient to compute convo-
+lutions on GPUs . However, a sparse matrix is usually no longer sparse in
+the Fourier domain, which limits the applicability (ie., reduction of memory
+footprint) of these methods.
+To address the shortcomings of the aforementioned works, we propose an
+efficient method to decimate the number of neurons. Our approach has four key
+advantages:  Neurons are assessed and reduced during the training phase.
+Therefore, no pre-trained network is required.  The reduction of parameters
+do not rely on the sparsity of neurons; thus, our method can be directly included
+in popular deep learning toolboxes.  The number of filters in Fourier domain is
+proportional to the number of neurons in spatial domain. Therefore, our method
+can also reduce the number of parameters in the Fourier domain.  Reducing
+the number of neurons of a layer directly condenses the data dimensionality
+when the output of an internal layer is utilized as image features .
+Our method consists of imposing sparse constraints on the neurons of a CNN
+in the objective function during the training process. Furthermore, to minimize
+the extra computational cost of adding these constraints, we solve the sparse con-
+strained optimization problem using forward-backward splitting method .
+The main advantage of forward-backward splitting is the bypass of the sparse
+constraint evaluations during the standard back-propagation step, making the
+implementation very practical. We also investigate the importance of rectified
+linear units in sparse constrained CNNs. Our experiments show that rectified
+Less is More: Towards Compact CNNs 3
+linear units help to reduce the number of neurons leading to even more compact
+networks.
+We conduct a comprehensive set of experiments to validate our method using
+four well-known models  on
+three public datasets including ImageNet. Table | summarizes a representative
+set of our results when constraints are applied to the first fully connected layer
+of each model, which has the largest number of neurons and parameters. As
+shown, even with a large portion of neurons removed and, therefore, a significant
+reduction in the memory footprint of the original model; the resulting networks
+still perform as good as the original ones. These results are also convenient for
+deployment in mobile platforms where computational resources are relevant. For
+instance, using single float type  to store the network, the amount of
+memory saved for AlexNet in Table 1 is 152 MB.
+To reiterate, the contribution of this paper is threefold. First, we remove
+neurons of a CNN during the training stage. Second, we analyze the importance
+of rectified linear units for sparse constraints. Finally, our experimental results
+on four well-known CNN architectures demonstrate a significant reduction in
+the number of neurons and the memory footprint of the testing phase without
+affecting the classification accuracy.
+2 Related Work
+Deep CNNs demand large memory and excessive computational times. This
+motivated studies to simplify the structure of CNNs. However, so far only one
+pioneering work explored the redundancy in the number of neurons .
+We organize the related work in three categories; network distillation, approx-
+imating parameters or neurons by memory efficient structures, and parameter
+pruning in large networks.
+Network distillation: The work in  is among the first papers that tried
+to mimic a complicated model with a simple one. The key idea is to train a
+powerful ensemble model and use it to label a large amount of unlabeled data.
+Then a neural network is trained on these data so as to perform similarly to
+the ensemble model. Following the idea of  presenting training of
+a simple neural network based on the soft output of a complicated one. Their
+results show that a much simpler network can imitate a complicated network.
+However, these methods require a two-step training process and the simple net-
+work must be trained after the complicated one.
+Memory efficient structures: Most of the studies in this category are
+inspired by the work of Denil et al.  that demonstrated redundancy in the
+parameters of neural networks. It proposed to learn only 5% of the parame-
+ters and predicted the rest by choosing an appropriate dictionary. Inspired by
+this,  proposed to represent the filters in convolutional layers by a linear
+combination of basis filters. As a result, convolving with the original filters is
+equivalent to convolving with the base filters followed by a linear combination of
+the output of these convolutions. These methods focus on speeding up the test-
+4 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+ing phase of CNNs. In , the use of the CP-decomposition to approximate the
+filter in each layer as a sequence of four convolutional layers with small kernels
+is investigated in order to speed up testing time on CPU mode of a network. In
+ several schemes to quantize the parameters in CNNs are presented. All these
+methods require a trained network and then fine tuning for the new structures.
+ applied Tensor Train  format to approximate the fully connected layers
+and train the TT format CNN from scratch. They can achieve a high compres-
+sion rate with little loss of accuracy. However, it is not clear whether TT format
+can be applied to convolutional layers.
+Parameter pruning: A straightforward way to reduce the size of CNNs
+is directly removing some of the unimportant parameters. Back to 1990, Le-
+Cun et al.  introduced computing the second derivatives of the objective
+function with respect to the parameters as the saliency, and removing the pa-
+rameters with low saliency value. Later, Hassibi and Stork  followed their
+work and proposed an optimal brain surgeon, which achieved better results.
+These two methods, nevertheless, require computation of the second derivatives,
+which is computationally costly for large-scale neural networks , di-
+rectly adding sparse constraints on the parameters was discussed. This method,
+different from ours, cannot reduce the number of neurons.
+Another approach  combines the memory efficient structures and param-
+eter pruning. First, unimportant parameters are removed, and then, after a fine-
+tuning process, the remaining parameters are quantized for further compression.
+This work is complementary to ours and can be used to further compress the
+network trained using our method.
+Directly related to our proposed method is . Given a pretrained CNN, it
+proposes a theoretically sound approach to combine similar neurons together.
+Yet, their method is mainly for pruning a trained network whereas our method
+directly removes neurons during training. Although  is data-free when pruning,
+it requires a pretrained network, which is data dependent. Moreover, our results
+show that, without degrading the performance, we can remove more neurons
+than the suggested cut-off value reported in .
+3 Sparse Constrained Convolutional Neural Networks
+Notation: In the following discussion, if not otherwise specified, |-| is the ;
+norm, ||x|| = \/}, 2
+is the 2 norm for a vector .
+We use W and b to denote all the parameters in filters and bias terms in a CNN,
+respectively. w; and b; represent the filter and bias parameters in the /-th layer.
+w; is a tensor whose size is w x h x m x n, where w and h are the width and the
+height of a 2D filter, m represents the number of channels for the input feature
+and n is the number of channels for the output feature. b; is a n dimensional
+vector, i.e. each output feature of this layer has one bias term. w); represents a
+wxhxm filter that creates the j-th channel of the output feature for layer 1, bj;
+is its corresponding bias term. w); and bj; together form a neuron. We use Ww,
+Less is More: Towards Compact CNNs 5
+w; and Ww); to represent the augmented filters (they contain the corresponding
+bias term).
+3.1 Training a Sparse Constrained CNN
+Let {X,Y*} be the training samples and corresponding ground-truth label.
+Then, a CNN can be represented as a function Y = f, where Y is the
+output of the network. W is learned through minimizing an objective function:
+min v
+Ww
+We use u to represent the objective function for simplicity. The objective
+function u is usually defined as the average cross entropy of the ground
+truth labels with respect to the output of the network for each training image.
+Equation  is usually solved using a gradient descend based method such as
+back-propagation .
+Our goal is adding sparse constraints on the neurons of a CNN. Therefore,
+the optimization problem of  can be written as:
+min y
+Ww
+where g represents the set of constraints added to W. Given this new op-
+timization problem, the k-th iteration of a standard back-propagation can be
+defined as:
+Oy
+We WE ge Wewint T og hawinn
+
+where WF represents the parameters learned at k-th iteration and 7 is the learn-
+Baw)
+ing rate. Based on , anew term |vwvwe-1 must be added to the gradient
+of each constrained layer during back. propagation. In those cases where g
+is non-differentiable at some points, sub-gradient methods of g are usually
+needed. However, these methods have three main problems. First, iterates of the
+sub-gradient at the points of non-differentiability hardly ever occur . Second,
+sub-gradient methods usually cannot generate an accurate sparse solution .
+Finally, sub-gradients of some sparse constraints are difficult to choose due to
+their complex form or they may not be unique . To avoid these problems, and
+in particular with 1, constrained optimization problems,  proposed
+to use proximal mapping. Following their idea, in the next section, we apply
+proximal operator to our problem.
+3.2 Forward-Backward Splitting
+Our proposal to solve the problem  and therefore, train a constrained CNN,
+consists of using forward-backward splitting algorithm . Forward-backward
+6 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+splitting provides a way to solve non-differentiable and constrained large-scale
+optimization problem of the generic form:
+min f
+where z
+RY, f is an arbitrary convex function
+. The algorithm consists of two stages: First, a forward gradient descent
+on f. Then, a backward gradient step evaluating the proximal operator of
+h. Using this algorithm has two main advantages. First, it is usually easy to
+estimate the proximal operator of h or even having a closed form solution.
+Second, backward analysis has an important effect on the convergence of the
+method when f is convex .
+Though there is no guarantee about convergence when f is non-convex,
+forward-backward splitting method usually works quite well for non-convex op-
+timization problems . By treating y, the forward
+gradient descent can be computed exactly as the standard back-propagation al-
+gorithm in training CNNs. As a result, using forward-backward splitting method
+to solve sparse constrained CNNs has two steps in one iteration. , leontin Z
+shows how to apply this method to optimize Equation , where r* is the learn-
+ing rate of forward step at k-th iteration.
+Algorithm 1 Forward-backward splitting for sparse constrained CNNs
+1: while Not reaching maximum number of iterations do
+2: One step back-propagation for w to get w
+3: Wt! = arg miny, g + ste |W
+w**||
+4: end while
+In practice, we define one step in line 2 of Algorithm 1 as one epoch instead
+of one iteration of the stochastic gradient descent algorithm. There are two main
+reasons for this. First, to minimize the computational training overhead of the
+algorithm as we need to estimate fewer proximal operators of g. Second, the
+gradient of u at each iteration is an approximation to the exact gradient
+which is noisy . Computing the gradient after certain number of iterations
+would make the learned parameters more stable .
+4 Sparse Constraints
+Our goal is removing neurons w);, each of which is a tensor. To this end, we
+consider two sparse constraints for g: tensor low rank con-
+straints .
+4.1 Tensor Low Rank Constraints
+Although the low-rank constraints for 2D matrices and their approximations
+have been extensively studied, as far as we know, there are few works considering
+Less is More: Towards Compact CNNs t
+the low-rank constraints for higher dimensional tensors. In , the authors
+proposed to minimize the average rank of different unfolding of a tensor matrix.
+To relax the problem to convex, they proposed to approximate the average rank
+using the average of trace norms, which is called tensor trace norm, for different
+unfolding . We use this formulation as our tensor low rank constraints.
+The tensor trace norm of a neuron Wy; is || Willer = 4 jy | W(|lers Where
+n is the order of tensor W);, and W7; is the result of unfolding the tensor wi;
+along the i-th mode. Under this definition, function g can be defined as:
+; Le
+g
+G.DEQ i=l
+where  is the weight
+for the sparse constraint.
+As a result, the backward step in the forward-backward splitting is given by:
+1 1 2
+ak * a ak a kx 2 a
+= aremin
+y ay| leo = y ye 12 6
+Wy) = arg oa re fy ca [ler + Bran 24 IM i@
+Will 
+This problem can be solved using the Low Rank Tensor Completion 
+algorithm proposed in .
+4.2 Group Sparse Constraints
+These are defined as 12; regularizer. Applying 12; to our objective function, we
+have:
+g
+GDER
+where A and 2 are the same as in Section 4.1. ||.|| is defined in Section 3.
+According to , backward step in forward backward splitting method at k-th
+iteration now becomes:
+whe
+wh, = max{||wh*||
+7A, 0} 2 
+Iw
+where T is the learning rate and wie is the optimized neuron from the forward
+step in forward backward splitting.
+5 Importance of Rectified Linear Units in Sparse
+Constrained CNNs
+Convolutional layers in a CNN are usually followed by a nonlinear activation
+function. Rectified Linear Units   has been heavily used in CNNs for
+' Please refer to the supplementary material for the specific details of the algorithm.
+8 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+computer vision tasks. Besides the advantages of ReLU discussed in , we
+show that Ww); = 0 is a local minimum in sparse constrained CNNs, of which the
+non-linear function is ReLU. This can explain our findings that ReLU can help
+removing more neurons and inspires us to set momentum to 0 for neurons which
+reach their sparse local minimum during training as discussed in Section 6.1.
+ReLU function was defined as ReLU  which is non-differentiable
+at 0. This brings us difficulty to analyze the local minimum of sparse constrained
+CNNs. Based on the observation that, in practical implementations, the gradi-
+ent of ReLU function at 0 is set to 0 . We consider the following practical
+definition of ReLU:
+x ife>e
+0 ifa<e.
+ReLU
+Where
+is chosen such that for any real number x that a computer can repre-
+sent, if x > 0, then a > e; if
+< 0, then x < e. The non-differentiable point
+of ReLU function is now at
+which will never appear in practice. Under this
+definition, ReLU function is differentiable and continuous at point 0, the gradi-
+ent of ReLU at 0 is now 0. As a result, this practical definition of ReLU is
+consistent with the implementations of ReLU function in practice .
+By fixing all other neurons, it is not difficult to show that a particular neuron
+Wij = 0 lies in a flat region of ~ under the above definition of ReLU.
+Moreover, g contains a sparse constrains, so Wj; = 0 is the local minimum
+of the objective function {.
+The fact that w,; = 0 is a local minimum for sparse constrained CNNs
+using ReLU as nonlinear activation function can explain the improvement in
+the number of neurons removed as discussed in Section 6.1. Importantly, we
+find that using momentum during the optimization may push a zero neuron
+away from being 0 since momentum memorizes the gradient of this neuron in
+previous steps. As a consequence, using momentum would lead to more non-zero
+neurons without performance improvement. In practice, once a neuron reaches
+0, we set its momentum to zero, forcing the neuron to maintain its value. As
+we will demonstrate in Section 6.1 this results in more zero neurons without
+affecting the performance.
+6 Experiments
+We test our method on four well-known convolutional neural networks on three
+well-known datasets: LeNet on MNIST  on CIFAR-10
+. We use LeNet and
+CIFAR10-quick provided by Matconvnet  and AlexNet and VGG provided by
+ to carry out all our experiments.
+All the structures of the networks are provided by Matconvnet ,
+the only change we made is to add ReLU function after each convolutional layer
+Please find the detailed discussion in supplementary material.
+Less is More: Towards Compact CNNs 9
+= |tensor low rank with relu |tensor low rank with relu
+Ba soup sparse wine [| sroup sparse wit rela
+a _ agin sane wiboutre || San sparse wate
+e LL. & ante
+g = Bos
+8 x ths 3 & : nba
+bebphd rcpt
+a ode ee
+e* g
+i eatedbe
+Z
+- 2 B =
+2
+2 a
+Weight for sparse constraints
+
+*" Weight for sparse constraints
+Fig. 1.  Percentage of nonzero neurons on the second convolutional layer for LeNet
+under different weights for sparse constraints with and without adding ReLU layer. 
+Corresponding top 1 validation error rate. Baseline in  shows the top 1 validation
+error rate without adding any sparse constraints. Error bars represent the standard
+deviation over the four experiments.
+in LeNet, which we will discuss in detail later. For all our experiments, data
+augmentation and pre-processing strategies are provided by .
+6.1 LeNet on MNIST
+MNIST is a well-known dataset for machine learning and computer vision. It
+contains 60,000 handwritten digits for training and 10, 000 for testing. All these
+digits are images of 28 x 28 with a single channel. All the data will be subtracted
+by the mean as suggested in . The average top 1 validation error rate of LeNet
+on MNIST adding ReLU layer is 0.73%. As training a LeNet on MNIST is fast,
+we use this experiment as a sanity check. Results are computed as the average
+over four runs of each experiment using different random seeds.
+ReLU helps removing more neurons: The LeNet structure provided by
+Matconvnet has two convolutional layers and two fully connected layers. The
+two convolutional layers are followed by a max pooling layer respectively. Under
+this structure, the sparse solution may not be a local minimum. Based on the
+discussion in Section 5, we add a ReLU layer after each of these two convolutional
+layers so that Ww); = 0 is a local minimum. We compare these two structures by
+using different weights for sparse constraints added to the second convolutional
+layer and show the results in Figure 1.
+As shown in Figure 1, adding ReLU improves the performance of LeNet no
+matter whether we add sparse constraints or not. Comparing these two struc-
+tures, adding ReLU layer always leads to more zero neurons compared with the
+original structure. What is more interesting is that, with ReLU layer, the top
+1 validation error rate of LeNet with sparse constraints is more close to, if not
+better than, the performance without sparse constraints. This may be explained
+by the fact the W,; = 0 is a local minimum of the structure with ReLU and this
+local minimum is usually a good one. In the following discussion, when LeNet is
+10 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+= tensor bw rank momentum =0
+ge Loow| group sparse, momentum =0 ff _
+& & tensor lowrank, moment Sua
+ra :[--group sparse, momentum ==0 [|
+2
+e g
+8 go
+8
+Ba 3
+Z| su
+< a
+Ex &
+5 Baal
+Weight for sparse constraints Weight for sparse constraints
+
+= tensor bw rank, momentum ae tensor loa rank moment
+| 3] group sparse, momenta eal A 9:0UP sparse, momentum
+& "Ye tensor ionrank, moment Ya tensor lowranic moment:
+*|L- oun sparse, momentum ~= & |= grou sparse, momentum
+8 go
+| Bo
+8 a
+R 5 gol
+& 8
+24 Bae
+2, 8
+c A od
+Eo &
+F aa
+Weight for sparse constraints
+
+Weight for sparse constraints
+Fig. 2. Comparison of the proposed results with setting momentum to be zero.  an
+ show the percentage of non zero neurons for second convolutional layer and first
+fully connected layer under different weights for sparse constraints respectively.  and
+ show their corresponding top 1 validation error rate.
+mentioned, we mean LeNet with ReLU function after each of its convolutiona
+layers.
+Momentum for sparse local minimum: Momentum plays a significant
+role in training CNNs. It can be treated as a memory of the gradient computec
+in previous iterations and has been proved to accelerate the convergence of SGD.
+However, this memory of gradient effect may push a neuron in its sparse loca
+minimum away, leading to results with more non-zero neurons with no improve-
+ment in performance. To avoid this problem we can directly set the momentum
+of the neurons to be zero for those reached sparse local minimum.
+In Figure 2, we compare the number of non-zero neurons with and withou
+setting the momentum to be zero for LeNet on MNIST dataset. We add the
+sparse constraints on the second convolutional layer and the first fully connecte:
+layer since they have most of the filters. As shown in Figure 2, the performance
+does not drop when momentum is set to be zero for local sparse minimum.
+Additionally, we sporadically achieve better performance. Moreover, for firs
+fully connected layer, setting momentum to be zero leads to results with more
+zero neurons under large sparse weights. *
+3 For a clear comparison, we only show results under large weights for the first fully
+connected layer in the figure.
+Less is More: Towards Compact CNNs 11
+Proposed result on fea a Towrank constainls Tor conv
+2
+= ata-free resutonfc3 zal] group sparse constiants for conv3|
+5] =no sparse constraints |. don BX _ || Ae towrank constraints tor fea
+g & || So tfoup sparse constant trict
+2 || without adding sparse constraints
+p a 8 xf -
+5 c
+e B,
+a a o
+3g. ag Ea
+: g
+A o 3
+a
+Ba
+2 a
+a:
+2 g
+s 8
+3 + eR)
+Remaining non zero neurons 
+
+Remaining non zero neurons 
+Fig. 3. a) MNIST Comparison between of single layer results of the proposed method
+and the data-free method presented in  using LeNet on MNIST. b) CIFAR-10 Top
+1 validation error rate versus percentage of remaining non zero neurons on conv3 and
+fce4 using CIFAR10-quick.
+From Figure 1 and Figure 2, we find that the top-1 error rates of using
+tensor low-rank constraints are a little better than using group sparse constraints.
+Group sparse constraints, however, can give more zero neurons which can result
+in more compact networks. These differences are very small, so we conclude
+that both of these methods can help removing neurons without hurting the
+performance of the network. In the following discussion, only results from group
+sparse constraints are shown when necessary.
+Compression for LeNet: Figure 3  shows the comparison of the pro-
+posed method with  only adds sparse constraints on first fully con-
+nected layer of LeNet , we only show our results using group sparse con-
+straints on fc3. The compression rate and top 1 validation error are averaged over
+4 results with different random seeds. Since the two networks may be trained
+differently, we show the relative top 1 validation error rate, which is defined as
+top 1 validation error rate of the proposed method minus that without sparse
+constraints. A smaller value means better performance. As shown in this figure,
+our method outperforms the one proposed in  in both compression and accu-
+racy. Please, note that  predicts the cut-off number of neurons for fc3 to be
+440 and a drop of performance of 1.07%. The proposed method, on the contrary,
+can remove 489 neurons while maintaining the performance of the original one.
+To improve the compression rate, we add group sparse constraints to the
+layers containing most of the parameters in LeNet: the second convolutional
+layer . We compare two strategies.
+First, adding sparse constraints in a layer by layer fashion and second, jointly
+constraining both layers. Empirically we found that the first strategy performs
+better. Thus, we first add sparse constraints on fe3 and, after the number of zero-
+neurons in this layer is stable, we add sparse constraints on conv2. We report the
+results of using group sparse constraints. The weight used for fc3 is set to 100,
+and the weights for conv2 are set to 60,80, 100. Table 3 summarizes the average
+results over the four runs of the experiment. As shown, our method not only
+reduces significantly the number of neurons, which leads to significant reduction
+12 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+Table 2. Results of adding group sparse constraints on three layers.
+a Non-zero Neurons|Number of |Top-1 error 
+conv1]conv2|fc3}conv1|conv2| fe3 |Parameters
+100 | 80 |90| 7 23 | 20 11820 0.72
+100 | 120 |80| 7 13 | 21 7079 0.76
+120 | 120 |90| 6 14 | 20 6980 0.81
+in the number of parameters in these two layers but also compresses the total
+number of parameters of the network for more than 90%, leading to a memory
+footprint reduction larger than 1 MB.
+We further try to add group sparse constraints on all three layers of LeNet
+to check whether our method can work on more layers. To introduce more re-
+dundancy on conv1 and conv2, we initialize the number of non zero neurons for
+conv1 and conv2 to be 100. Similar to adding sparse constraints on two layers, we
+add sparse constraints layer by layer. We show some of our results in Table 2. To
+compare, the best compression result of adding sparse constraints on conv2 and
+fc3 leads to a model with 13062 parameters . We
+find that by adding sparse constraints on three layers, a more compact network
+can be achieved though we initialize the network with more neurons.
+6.2 CIFAR-10 quick on CIFAR-10
+CIFAR-10  is a database consisting of 50,000 training and 10,000 testing
+RGB images with a resolution of 32 x 32 pixels split into 10 classes. As suggested
+in , data is standardized using zero-mean unit length normalization followed by
+a whitening process. Furthermore, we use random flips as data augmentation. For
+a fair comparison, we train the original network, CIFAR10-quick, without any
+sparse constraints using the same training set-up and achieve a top 1 validation
+error rate of 24.75%.
+Since the third convolutional layer  and the first fully connected layer
+ contain most of the parameters, we add sparse constraints on these two
+layers independently. Figure 3  shows the top 1 validation error rate versus the
+percentage of remaining non-zero neurons. As shown, 20% and 70% of neurons
+for conv3 and fc4 can be removed without a noticeable drop in performance.
+To obtain the best compression results, we jointly constraint conv3 and fc4
+as we did with LeNet. To this end, we first add the constraints on fc4, and then,
+we include the same ones on conv3. We run the experiment for more epochs com-
+pared to the default values in Matconvnet . For a fair comparison, we train the
+baseline  for the same number
+of epochs. As a result, we obtain a top 1 validation error of 22.33%. We used
+this result to compute relative top 1 validation error rate. The weight of group
+sparse constraints for fc4 is fixed to 280 while the three different weights for
+conv3 are 220, 240, 280. A summary of results is listed in the second part of Ta-
+ble 3. Through this experiment, it can be seen that even for this simple network,
+Less is More: Towards Compact CNNs 13
+[tet eons
+|S proposes resutonte
+B Lp datoctee esunon eo
+5 | Stetson cme
+5.
+e
+2
+3 a
+8
+|
+8 *
+2 + a
+3 af Si.
+Remaining non zero neurons 
+Fig. 4. ImageNet. Comparison between single layer results on fe6 and fc7 and the
+data-free method in .
+we can remove a large number of neurons which leads to a great compression in
+the number of parameters. Considering that there are only 64 neurons on each
+of these two layers, the compression results are significant.
+6.3 AlexNet and VGG on ImageNet
+ImageNet  is a dataset with over 15 million labeled images split into 22,000
+categories. AlexNet  which
+is a subset of ImageNet with 1.2 million training images and 50,000 validation
+images. We use the implementation of AlexNet and VGG-13 provided by  in
+order to test ImageNet on our cluster. Random flipping is applied to augment
+the data. Quantitative results are reported using a single crop in the center of
+the image. For comparison, we consider the network trained without adding any
+sparse constraints. The top 1 validation error for this baseline is 45.57% and
+37.50% for AlexNet and VGG-13 respectively. For the rest of experiments we
+only report results using group sparse constraints.
+Figure 4 shows the top 1 validation error rate versus the percentage of non-
+zero neurons for AlexNet. Group sparse constraints are added on first and second
+fully connected layers  independently. Results from  are copied
+from their paper and shown in this figure for comparison. Similar to Section 6.1,
+we show the relative top 1 validation error rates due to the training of two
+methods may be different. This figure clearly shows that compared with , the
+proposed method can remove a large number of neurons without decreasing the
+performance. For instance, the best compression results of the proposed method
+can eliminate 76.76% of all the parameters of AlexNet with a negligible drop
+in performance . The best performance model
+in , on the other hand, can only remove 34.89% of the parameters with top
+1 validation error rate decreased by 2.24%. A representative set of compression
+results obtained using sparse constraints on two layers is shown in the third part
+of Table 3.
+We test the proposed method on VGG-13 on the first fully connected layer
+as it contains most of the parameters of the network. Table 4 summarizes the
+outcomes of the experiment for different group sparsity weights. As shown, for
+14 Hao Zhou, Jose M. Alvarez and Fatih Porikli
+Table 3. Results of adding group sparse constraints on two layers. The best compres-
+sion results within 1% decrease in top 1 error rate is shown in bold.
+T Neurons pruned| parameter memory
+conv2| fc3 |conv2 fc3 absolute|relative|reduction 
+LeNet | 60 |100] 45.5 97.75 0.73 0.00 95.35 1.57
+80 |100] 56.5 97.75 0.77 0.04 96.31 1.58
+100 |100| 63.0 97.75 0.76 0.03 96.79 1.59
+T Neurons pruned ] parameters memory
+conv3| fc4 |conv3 fc absolute|relative] reduction
+cifarl0-| 220 |280) 31.25 70.31 22.21 | -0.12 47.17 268.24
+quick | 240 /280) 46.88 71.86 22.73 0.4 55.15 313.62
+280 |280) 54.69 70.31 23.78 | 1.45 58.56 333.01
+T Neurons pruned ] parameters memory
+fc6 |fc7| fc6 fc7 absolute|relative|reduction 
+AlexNet] 40 | 35 |48.46 56.49 44.58 | -0.98 55.15 128.26
+45 | 30] 77.05 60.21 46.14 | 0.57 76.76 178.52
+45 | 35 | 73.39 65.80 45.88 | 0.31 74.88 174.14
+Table 4. Some compression results of proposed method on fel for vgg-B. Neuron:
+compression of neurons in the fel. Parameter: compression of total parameters.
+layer| 7] compression % memory top 1 error 
+neurons|parameters|reduced |absolute|relative
+fel |5| 39.04 35.08 178.02 38.30 | 0.80
+fcl  49.27 44.28 224.67 38.54 | 1.04
+fcl  76.21 61.30 311.06 39.26 | 1.76
+this state-of-the-art network structure, our method can reduce nearly half of the
+parameters and significantly reduce the memory footprint at the expenses of a
+slight drop in performance.
+7 Conclusion
+We proposed an algorithm to significantly reduce of the number of neurons in
+a convolutional neural network by adding sparse constraints during the training
+step. The forward-backward splitting method is applied to solve the sparse con-
+strained problem. We also analyze the benefits of using rectified linear units as
+non-linear activation function to remove a larger number of neurons.
+Experiments using four popular CNNs including AlexNet and VGG-B demon-
+strate the capacity of the proposed method to reduce the number of neurons,
+therefore, the number of parameters and memory footprint, with a negligible
+loss in performance.
+Acknowledgment The authors thank NVIDIA for generous hardware donations.
+Less is More: Towards Compact CNNs 15
+
